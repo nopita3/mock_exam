@@ -1,11 +1,14 @@
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 from pathlib import Path
+from uuid import UUID
 
 from fastapi import HTTPException, status
 import jwt
+from sqlalchemy.ext.asyncio import AsyncSession
 from backend.config import securuity_settings
 from backend.cores.exception import InvalidToken
+from backend.database.models import Log
 
 def generate_access_token(data:dict , 
                           expiry: timedelta = timedelta(days=14)
@@ -54,3 +57,30 @@ def decode_email_token(token: str, salt:str , expiry: timedelta|None = None  ) -
     except (BadSignature , SignatureExpired): 
         #ไม่ถุกต้องหรือหมดอายุ
         return None
+
+
+async def create_api_log(
+    session: AsyncSession,
+    uri_path: str,
+    result: bool,
+    description: str,
+    user_id: str | UUID | None = None,
+) -> None:
+    parsed_user_id: UUID | None = None
+    if user_id is not None:
+        try:
+            parsed_user_id = user_id if isinstance(user_id, UUID) else UUID(str(user_id))
+        except ValueError:
+            parsed_user_id = None
+
+    log_entry = Log(
+        user_id=parsed_user_id,
+        uri_path=uri_path,
+        result=result,
+        description=description,
+    )
+    session.add(log_entry)
+    try:
+        await session.commit()
+    except Exception:
+        await session.rollback()

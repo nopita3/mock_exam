@@ -15,7 +15,7 @@ engine = create_async_engine(
 
 async def create_db_tables():
     async with engine.begin() as connection:
-        from backend.database.models import User , Teacher , Student
+        from backend.database.models import Log, Student, Teacher, User
         await connection.run_sync(SQLModel.metadata.create_all)
 
 

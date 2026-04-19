@@ -1,17 +1,19 @@
 
+from typing import Any
+
 from pydantic import EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import  select
+from sqlalchemy import select
 from uuid import UUID
 from fastapi import BackgroundTasks
 import httpx
 
-from backend.cores.exception import ClientNotVerified, InvalidToken, EntityAlreadyExists, EntityNotAllowed, EntityNotFound
+from backend.cores.exception import ClientNotAuthorized, ClientNotVerified, InvalidToken, EntityAlreadyExists, EntityNotAllowed, EntityNotFound
 from backend.services.base import BaseService
 from backend.services.email import EmailService
 from backend.config import app_settings, oauth_settings
 
-from backend.api.schemas.users import BaseUser, Roles, StudentRegisterRequest, TeacherRegisterRequest
+from backend.api.schemas.users import BaseUser, Roles
 from backend.database.models import Student, Teacher, User
 from backend.utils import decode_email_token, generate_access_token, generate_email_token 
 
@@ -21,16 +23,30 @@ class UserService(BaseService):
     def __init__(self, session: AsyncSession ):
         super().__init__(User, session)
         self.session = session
+
+    @staticmethod
+    def _normalize_email(email: str) -> str:
+        return str(email).strip().lower()
+
+    def _is_allowed_email_domain(self, email: str) -> bool:
+        normalized_email = self._normalize_email(email)
+        allowed_domain = str(app_settings.ALLOWED_EMAIL_DOMAIN).strip().lower().lstrip("@")
+        return normalized_email.endswith(f"@{allowed_domain}")
+
+    def _ensure_allowed_email_domain(self, email: str) -> None:
+        if not self._is_allowed_email_domain(email):
+            raise EntityNotAllowed()
         
         
 
     async def add(self, credentials: BaseUser, background_tasks: BackgroundTasks | None = None ) -> BaseUser:
+        self._ensure_allowed_email_domain(credentials.email)
         user = User(
             user_id=credentials.userID,
             fname=credentials.fname,
             lname=credentials.lname,
             nname=credentials.nname,
-            role=getattr(credentials, "role", Roles.student),
+            role=getattr(credentials, "role", Roles.STUDENT),
             email=credentials.email,
             email_validated=False,
         )
@@ -40,82 +56,6 @@ class UserService(BaseService):
 
         await self._send_verification_email(user, background_tasks)
       
-        return user
-
-    async def register_student(self, payload: StudentRegisterRequest, background_tasks: BackgroundTasks | None = None) -> User:
-        existing_user = await self.session.execute(
-            select(User).where((User.email == payload.email) | (User.user_id == payload.userID))
-        )
-        if existing_user.scalar() is not None:
-            raise EntityAlreadyExists()
-
-        user = User(
-            user_id=payload.userID,
-            fname=payload.fname,
-            lname=payload.lname,
-            nname=payload.nname,
-            role=Roles.student,
-            email=payload.email,
-            email_validated=False,
-        )
-
-        student = Student(
-            StudentID=payload.userID,
-            fname=payload.fname,
-            lname=payload.lname,
-            nname=payload.nname,
-            department=payload.department,
-            role="student",
-        )
-
-        self.session.add(user)
-        self.session.add(student)
-        await self.session.commit()
-        await self.session.refresh(user)
-
-        await self._send_verification_email(user, background_tasks)
-        return user
-
-    async def register_teacher(
-        self,
-        payload: TeacherRegisterRequest,
-        complex_code: str,
-        background_tasks: BackgroundTasks | None = None,
-    ) -> User:
-        if complex_code != app_settings.TEACHER_REGIST_COMPLEX_CODE:
-            raise EntityNotAllowed()
-
-        existing_user = await self.session.execute(
-            select(User).where((User.email == payload.email) | (User.user_id == payload.userID))
-        )
-        if existing_user.scalar() is not None:
-            raise EntityAlreadyExists()
-
-        user = User(
-            user_id=payload.userID,
-            fname=payload.fname,
-            lname=payload.lname,
-            nname=payload.nname,
-            role=Roles.TEACHER,
-            email=payload.email,
-            email_validated=False,
-        )
-
-        teacher = Teacher(
-            TeacherID=payload.userID,
-            fname=payload.fname,
-            lname=payload.lname,
-            nname=payload.nname,
-            department=payload.department,
-            role="teacher",
-        )
-
-        self.session.add(user)
-        self.session.add(teacher)
-        await self.session.commit()
-        await self.session.refresh(user)
-
-        await self._send_verification_email(user, background_tasks)
         return user
 
     async def _send_verification_email(self, user: User, background_tasks: BackgroundTasks | None = None) -> None:
@@ -156,24 +96,11 @@ class UserService(BaseService):
         
     async def google_login(self, id_token: str, background_tasks: BackgroundTasks | None = None) -> str:
         payload = await self._verify_google_id_token(id_token)
-        email = payload["email"]
+        email = self._normalize_email(payload["email"])
         user = await self._get_by_email(email)
 
         if user is None:
-            user = User(
-                user_id=payload["sub"],
-                fname=payload.get("given_name") or payload.get("name") or email.split("@")[0],
-                lname=payload.get("family_name") or "",
-                nname=payload.get("given_name") or payload.get("name") or email.split("@")[0],
-                role=Roles.student,
-                email=email,
-                email_validated=False,
-            )
-            self.session.add(user)
-            await self.session.commit()
-            await self.session.refresh(user)
-            await self._send_verification_email(user, background_tasks)
-            raise ClientNotVerified()
+            raise ClientNotAuthorized()
 
         if not user.email_validated:
             await self._send_verification_email(user, background_tasks)
@@ -215,7 +142,10 @@ class UserService(BaseService):
             raise InvalidToken()
 
         email = payload.get("email")
-        if not email or not email.endswith("@essence.ac.th"):
+        if not email:
+            raise InvalidToken()
+
+        if not self._is_allowed_email_domain(email):
             raise InvalidToken()
 
         return payload
@@ -251,6 +181,72 @@ class UserService(BaseService):
         )
         user = result.scalar()
         return user
+
+    @staticmethod
+    def _normalize_role(role: Any) -> str:
+        value = getattr(role, "value", role)
+        return str(value).lower()
+
+    async def _require_roles(self, user_id: str, allowed_roles: set[str]) -> User:
+        result = await self.session.execute(
+            select(User).where(User.user_id == user_id)
+        )
+        user = result.scalar()
+
+        if user is None:
+            raise EntityNotFound()
+
+        if self._normalize_role(user.role) not in allowed_roles:
+            raise ClientNotAuthorized()
+
+        return user
+
+    async def get_user_data(self, user_id: str) -> dict[str, Any]:
+        """Get user profile with role-specific data from student/teacher tables."""
+        result = await self.session.execute(
+            select(User).where(User.user_id == user_id)
+        )
+        user = result.scalar()
+
+        if user is None:
+            raise EntityNotFound()
+
+        profile: dict[str, Any] = {
+            "id": str(user.id),
+            "user_id": user.user_id,
+            "email": user.email,
+            "fname": user.fname,
+            "lname": user.lname,
+            "nname": user.nname,
+            "role": user.role,
+            "email_validated": user.email_validated,
+        }
+
+        if user.role == Roles.STUDENT:
+            student_result = await self.session.execute(
+                select(Student).where(Student.StudentID == user.user_id)
+            )
+            student = student_result.scalar()
+            if student is None:
+                raise EntityNotFound()
+
+            profile["department"] = student.department
+            profile["table_role"] = student.role
+            return profile
+
+        if user.role == Roles.TEACHER:
+            teacher_result = await self.session.execute(
+                select(Teacher).where(Teacher.TeacherID == user.user_id)
+            )
+            teacher = teacher_result.scalar()
+            if teacher is None:
+                raise EntityNotFound()
+
+            profile["department"] = teacher.department
+            profile["table_role"] = teacher.role
+            return profile
+
+        return profile
     
     
         

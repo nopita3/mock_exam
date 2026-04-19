@@ -1,6 +1,7 @@
 from pydantic import EmailStr
 from sqlmodel import Column, Field, Relationship, SQLModel, text
 from uuid import UUID , uuid4
+from datetime import date
 
 from backend.api.schemas.users import Roles , TeacherDepartment , StudentDepartment
 from sqlalchemy.dialects import postgresql
@@ -29,12 +30,17 @@ class User(SQLModel, table = True):
         sa_relationship_kwargs={"foreign_keys": "Teacher.TeacherID"}
     )
 
+    log_back: list["Log"] = Relationship(
+        back_populates="user_back",
+        sa_relationship_kwargs={"foreign_keys": "Log.user_id"}
+    )
+
 
 class Student(SQLModel, table = True):
 
     __tablename__ = "student"
 
-    StudentID: str = Field(unique=True , foreign_key = "user.user_id")
+    StudentID: str = Field(primary_key=True, foreign_key="user.user_id")
     fname: str 
     lname: str 
     nname: str 
@@ -47,11 +53,16 @@ class Student(SQLModel, table = True):
         sa_relationship_kwargs={"foreign_keys": "Student.StudentID"}
     )
 
+    score_back: list["Score"] = Relationship(
+        back_populates="student_back",
+        sa_relationship_kwargs={"foreign_keys": "Score.studentID"}
+    )
+
 class Teacher(SQLModel, table = True):
 
     __tablename__ = "teacher"
 
-    TeacherID: str = Field(unique=True , foreign_key = "user.user_id")
+    TeacherID: str = Field(primary_key=True, foreign_key="user.user_id")
     fname: str 
     lname: str 
     nname: str 
@@ -63,3 +74,40 @@ class Teacher(SQLModel, table = True):
         back_populates="teacher_back",
         sa_relationship_kwargs={"foreign_keys": "Teacher.TeacherID"}
     )
+
+class Score(SQLModel, table = True):
+
+    __tablename__ = "score"
+
+    exam_id: UUID = Field(sa_column=Column(postgresql.UUID, primary_key=True, index=True, nullable=False))
+    studentID: str = Field(primary_key=True, foreign_key="student.StudentID")
+    exam_name: str
+    exam_round: str
+    test_date: date
+    score: float
+
+
+    student_back: "Student" = Relationship(
+        back_populates="score_back",
+        sa_relationship_kwargs={"foreign_keys": "Score.studentID"}
+    )
+
+
+class Log(SQLModel, table=True):
+
+    __tablename__ = "log"
+
+    id: UUID = Field(sa_column=Column(postgresql.UUID, primary_key=True, default=uuid4))
+    user_id: UUID | None = Field(default=None, foreign_key="user.id")
+    uri_path: str
+    result: bool
+    description: str
+
+    user_back: "User" = Relationship(
+        back_populates="log_back",
+        sa_relationship_kwargs={"foreign_keys": "Log.user_id"}
+    )
+
+
+
+    

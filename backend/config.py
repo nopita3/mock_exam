@@ -58,7 +58,11 @@ class OauthSettings(BaseSettings):
 class AppSettings(BaseSettings):
     APP_NAME: str = "Supervisor Tracking System"
     app_domain: str = "http://localhost:8000"
-    TEACHER_REGIST_COMPLEX_CODE: str = "tmLzmSygG4Tzw6YEMd34M"
+    ALLOWED_EMAIL_DOMAIN: str = "essence.ac.th"
+    TEACHER_CODE: str 
+    ADMIN_CODE: str
+
+    model_config = _base_config
 
 
 db_settings = DatabaseSettings()

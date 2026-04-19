@@ -1,6 +1,7 @@
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi import Depends
-from backend.cores.exception import InvalidToken
+from backend.config import app_settings
+from backend.cores.exception import ClientNotAuthorized, InvalidToken
 from backend.database.blacklist import is_jti_blacklisted
 from backend.utils import decode_access_token
 
@@ -24,3 +25,13 @@ async def verify_token(credentials: HTTPAuthorizationCredentials = Depends(oauth
         raise InvalidToken()
     
     return data
+
+
+def verify_admin_complex_code(complex_code: str) -> None:
+    if complex_code != app_settings.ADMIN_CODE:
+        raise ClientNotAuthorized()
+
+
+def verify_teacher_complex_code(complex_code: str) -> None:
+    if complex_code != app_settings.TEACHER_CODE:
+        raise ClientNotAuthorized()
