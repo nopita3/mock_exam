@@ -1,7 +1,7 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Request, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.api.schemas.users import ScoreUploadResponse, TeacherAllStudentScoresResponse, TeacherRegisterRequest, TeacherRegisterResponse
+from backend.api.schemas.users import MessageResponse, ScoreEditRequest, ScoreUploadResponse, StudentSelfScoreResponse, TeacherAllStudentScoresResponse, TeacherRegisterRequest, TeacherRegisterResponse
 from backend.cores.exception import InvalidToken
 from backend.cores.security import verify_teacher_complex_code, verify_token
 from backend.database.sessions import get_session
@@ -116,5 +116,109 @@ async def upload_scores(
         description="Teacher score upload succeeded",
     )
     return ScoreUploadResponse(**upload_result)
+
+
+@router.get("/{complex_code}/score/student/{student_id}", response_model=StudentSelfScoreResponse)
+async def get_scores_for_student(
+    complex_code: str,
+    student_id: str,
+    request: Request,
+    _valid_complex_code: None = Depends(verify_teacher_complex_code),
+    token_data: dict = Depends(verify_token),
+    session: AsyncSession = Depends(get_session),
+):
+    user_id = token_data.get("user", {}).get("user_id")
+    user_uuid = token_data.get("user", {}).get("id")
+    if not user_id:
+        await create_api_log(
+            session=session,
+            user_id=user_uuid,
+            uri_path=str(request.url.path),
+            result=False,
+            description="Teacher score read failed: invalid token data",
+        )
+        raise InvalidToken()
+
+    service = TeacherService(session)
+    score_data = await service.get_scores_for_student(user_id, student_id)
+    await create_api_log(
+        session=session,
+        user_id=user_uuid,
+        uri_path=str(request.url.path),
+        result=True,
+        description="Teacher score read succeeded",
+    )
+    return StudentSelfScoreResponse(**score_data)
+
+
+@router.put("/{complex_code}/score/student/{student_id}", response_model=StudentSelfScoreResponse)
+async def replace_scores_for_student(
+    complex_code: str,
+    student_id: str,
+    payload: ScoreEditRequest,
+    request: Request,
+    _valid_complex_code: None = Depends(verify_teacher_complex_code),
+    token_data: dict = Depends(verify_token),
+    session: AsyncSession = Depends(get_session),
+):
+    user_id = token_data.get("user", {}).get("user_id")
+    user_uuid = token_data.get("user", {}).get("id")
+    if not user_id:
+        await create_api_log(
+            session=session,
+            user_id=user_uuid,
+            uri_path=str(request.url.path),
+            result=False,
+            description="Teacher score update failed: invalid token data",
+        )
+        raise InvalidToken()
+
+    service = TeacherService(session)
+    score_data = await service.replace_scores_for_student(
+        user_id,
+        student_id,
+        [item.model_dump() for item in payload.scores],
+    )
+    await create_api_log(
+        session=session,
+        user_id=user_uuid,
+        uri_path=str(request.url.path),
+        result=True,
+        description="Teacher score update succeeded",
+    )
+    return StudentSelfScoreResponse(**score_data)
+
+
+@router.delete("/{complex_code}/score/student/{student_id}", response_model=MessageResponse)
+async def delete_scores_for_student(
+    complex_code: str,
+    student_id: str,
+    request: Request,
+    _valid_complex_code: None = Depends(verify_teacher_complex_code),
+    token_data: dict = Depends(verify_token),
+    session: AsyncSession = Depends(get_session),
+):
+    user_id = token_data.get("user", {}).get("user_id")
+    user_uuid = token_data.get("user", {}).get("id")
+    if not user_id:
+        await create_api_log(
+            session=session,
+            user_id=user_uuid,
+            uri_path=str(request.url.path),
+            result=False,
+            description="Teacher score delete failed: invalid token data",
+        )
+        raise InvalidToken()
+
+    service = TeacherService(session)
+    await service.delete_scores_for_student(user_id, student_id)
+    await create_api_log(
+        session=session,
+        user_id=user_uuid,
+        uri_path=str(request.url.path),
+        result=True,
+        description="Teacher score delete succeeded",
+    )
+    return MessageResponse(detail="Scores deleted successfully")
 
 

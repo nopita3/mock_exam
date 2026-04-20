@@ -60,6 +60,27 @@ class StudentCreate(BaseUser):
 
 class StudentRegisterRequest(BaseUser):
     department: StudentDepartment
+    classroom: Optional[str] = None
+    level: Optional[int] = None
+
+    @field_validator("classroom")
+    @classmethod
+    def validate_classroom(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        normalized = value.strip().upper()
+        if len(normalized) != 1 or not normalized.isascii() or not normalized.isalpha():
+            raise ValueError("classroom must be exactly one English alphabet character")
+        return normalized
+
+    @field_validator("level")
+    @classmethod
+    def validate_level(cls, value: Optional[int]) -> Optional[int]:
+        if value is None:
+            return value
+        if value >= 10:
+            raise ValueError("level must be an integer less than 10")
+        return value
 
 
 class StudentRegisterResponse(BaseModel):
@@ -70,6 +91,8 @@ class StudentRegisterResponse(BaseModel):
     nname: str
     role: RolesStudent = RolesStudent.student
     department: StudentDepartment
+    classroom: Optional[str] = None
+    level: Optional[int] = None
 
 
 class TeacherRegisterRequest(BaseUser):
@@ -108,6 +131,10 @@ class AccessTokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr
+
+
 class MessageResponse(BaseModel):
     detail: str
 
@@ -122,6 +149,8 @@ class UserProfileResponse(BaseModel):
     role: Roles
     email_validated: bool
     department: Optional[str] = None
+    classroom: Optional[str] = None
+    level: Optional[int] = None
     table_role: Optional[str] = None
 
 
@@ -152,12 +181,44 @@ class ScoreUploadResponse(BaseModel):
     skipped_rows: int
 
 
+class ScoreEditItemRequest(BaseModel):
+    exam_name: str
+    exam_round: str
+    test_date: str
+    score: float
+
+
+class ScoreEditRequest(BaseModel):
+    scores: list[ScoreEditItemRequest]
+
+
 class AdminUpdateStudentRequest(BaseModel):
     email: Optional[EmailStr] = None
     fname: Optional[str] = None
     lname: Optional[str] = None
     nname: Optional[str] = None
     department: Optional[StudentDepartment] = None
+    classroom: Optional[str] = None
+    level: Optional[int] = None
+
+    @field_validator("classroom")
+    @classmethod
+    def validate_classroom(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        normalized = value.strip().upper()
+        if len(normalized) != 1 or not normalized.isascii() or not normalized.isalpha():
+            raise ValueError("classroom must be exactly one English alphabet character")
+        return normalized
+
+    @field_validator("level")
+    @classmethod
+    def validate_level(cls, value: Optional[int]) -> Optional[int]:
+        if value is None:
+            return value
+        if value >= 10:
+            raise ValueError("level must be an integer less than 10")
+        return value
 
 
 class AdminUpdateTeacherRequest(BaseModel):

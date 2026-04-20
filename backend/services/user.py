@@ -69,7 +69,7 @@ class UserService(BaseService):
             "context": {
                 "name": user.fname,
                 "email": user.email,
-                "verify_url": f"{app_settings.app_domain}/auth/verify?token={token}",
+                "verify_url": f"{app_settings.frontend_app_domain}/auth/verification-complete?token={token}",
             },
             "template_name": "verification.html",
         }
@@ -77,6 +77,17 @@ class UserService(BaseService):
             background_tasks.add_task(email_service.send_message, **email_payload)
         else:
             await email_service.send_message(**email_payload)
+
+    async def resend_verification_email(self, email: str, background_tasks: BackgroundTasks | None = None) -> None:
+        self._ensure_allowed_email_domain(email)
+        user = await self._get_by_email(email)
+        if user is None:
+            raise EntityNotFound()
+
+        if user.email_validated:
+            return
+
+        await self._send_verification_email(user, background_tasks)
     
     async def verify_email(self , token: str):
         data = decode_email_token(token , salt="email-confirmation-salt" ,)
@@ -211,6 +222,21 @@ class UserService(BaseService):
         if user is None:
             raise EntityNotFound()
 
+        return await self._build_user_profile(user)
+
+    async def get_user_data_by_user_id(self, target_user_id: str) -> dict[str, Any]:
+        result = await self.session.execute(
+            select(User).where(User.user_id == target_user_id)
+        )
+        user = result.scalar()
+
+        if user is None:
+            raise EntityNotFound()
+
+        return await self._build_user_profile(user)
+
+    async def _build_user_profile(self, user: User) -> dict[str, Any]:
+
         profile: dict[str, Any] = {
             "id": str(user.id),
             "user_id": user.user_id,
@@ -231,6 +257,8 @@ class UserService(BaseService):
                 raise EntityNotFound()
 
             profile["department"] = student.department
+            profile["classroom"] = student.classroom
+            profile["level"] = student.level
             profile["table_role"] = student.role
             return profile
 

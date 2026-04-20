@@ -78,6 +78,37 @@ class AdminService(TeacherService):
         await self._require_roles(admin_user_id, {"admin"})
         return await self._create_exam_scores(exam_name, exam_round, test_date, upload_file)
 
+    async def get_student_by_admin(self, admin_user_id: str, student_user_id: str) -> dict[str, Any]:
+        await self._require_roles(admin_user_id, {"admin"})
+        profile = await self.get_user_data_by_user_id(student_user_id)
+        if self._normalize_role(profile["role"]) != "student":
+            raise EntityNotAllowed()
+        return profile
+
+    async def get_teacher_by_admin(self, admin_user_id: str, teacher_user_id: str) -> dict[str, Any]:
+        await self._require_roles(admin_user_id, {"admin"})
+        profile = await self.get_user_data_by_user_id(teacher_user_id)
+        if self._normalize_role(profile["role"]) != "teacher":
+            raise EntityNotAllowed()
+        return profile
+
+    async def get_scores_for_student_by_admin(self, admin_user_id: str, student_id: str) -> dict[str, Any]:
+        await self._require_roles(admin_user_id, {"admin"})
+        return await self.get_scores_for_student(admin_user_id, student_id)
+
+    async def replace_scores_for_student_by_admin(
+        self,
+        admin_user_id: str,
+        student_id: str,
+        score_rows: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        await self._require_roles(admin_user_id, {"admin"})
+        return await self.replace_scores_for_student(admin_user_id, student_id, score_rows)
+
+    async def delete_scores_for_student_by_admin(self, admin_user_id: str, student_id: str) -> None:
+        await self._require_roles(admin_user_id, {"admin"})
+        await self.delete_scores_for_student(admin_user_id, student_id)
+
     async def update_student_by_admin(
         self,
         admin_user_id: str,
@@ -121,6 +152,10 @@ class AdminService(TeacherService):
             student.nname = payload["nname"]
         if "department" in payload and payload["department"] is not None:
             student.department = payload["department"]
+        if "classroom" in payload and payload["classroom"] is not None:
+            student.classroom = payload["classroom"]
+        if "level" in payload and payload["level"] is not None:
+            student.level = payload["level"]
 
         self.session.add(user)
         self.session.add(student)
@@ -135,6 +170,8 @@ class AdminService(TeacherService):
             "lname": user.lname,
             "nname": user.nname,
             "department": student.department,
+            "classroom": student.classroom,
+            "level": student.level,
         }
 
     async def update_teacher_by_admin(

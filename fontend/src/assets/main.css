@@ -5,17 +5,22 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --border: 214.3 31.8% 91.4%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --foreground: 0 0% 13.7%;
+    --muted: 0 0% 92.2%;
+    --muted-foreground: 0 0% 27.8%;
+    --border: 0 0% 86.7%;
+    --primary: 358 58% 31%;
+    --primary-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
-    --ring: 222.2 84% 4.9%;
+    --ring: 358 58% 31%;
   }
 
   body {
-    @apply bg-white text-gray-900 antialiased;
+    @apply bg-[#EBEBEB] text-[#231F20] antialiased;
+  }
+
+  ::selection {
+    background: #7a2123;
+    color: #ffffff;
   }
 }

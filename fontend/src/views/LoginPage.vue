@@ -8,25 +8,25 @@
       <div class="grid gap-4 sm:grid-cols-3">
         <RouterLink
           to="/login/student"
-          class="bg-white rounded-xl shadow-md p-6 text-center hover:shadow-lg hover:scale-105 transition cursor-pointer border-2 border-transparent hover:border-blue-500"
+          class="bg-white rounded-xl shadow-md p-6 text-center hover:shadow-lg hover:scale-105 transition cursor-pointer border-2 border-transparent hover:border-[#7A2123]"
         >
-          <GraduationCap class="w-12 h-12 mx-auto text-blue-500 mb-3" />
+          <GraduationCap class="w-12 h-12 mx-auto text-[#7A2123] mb-3" />
           <h2 class="text-lg font-semibold">Student</h2>
           <p class="text-sm text-gray-500 mt-1">View your exam scores</p>
         </RouterLink>
         <RouterLink
           to="/login/teacher"
-          class="bg-white rounded-xl shadow-md p-6 text-center hover:shadow-lg hover:scale-105 transition cursor-pointer border-2 border-transparent hover:border-indigo-500"
+          class="bg-white rounded-xl shadow-md p-6 text-center hover:shadow-lg hover:scale-105 transition cursor-pointer border-2 border-transparent hover:border-[#231F20]"
         >
-          <BookOpen class="w-12 h-12 mx-auto text-indigo-500 mb-3" />
+          <BookOpen class="w-12 h-12 mx-auto text-[#231F20] mb-3" />
           <h2 class="text-lg font-semibold">Teacher</h2>
           <p class="text-sm text-gray-500 mt-1">Manage scores & students</p>
         </RouterLink>
         <RouterLink
           to="/login/admin"
-          class="bg-white rounded-xl shadow-md p-6 text-center hover:shadow-lg hover:scale-105 transition cursor-pointer border-2 border-transparent hover:border-red-500"
+          class="bg-white rounded-xl shadow-md p-6 text-center hover:shadow-lg hover:scale-105 transition cursor-pointer border-2 border-transparent hover:border-[#EBEBEB]"
         >
-          <Shield class="w-12 h-12 mx-auto text-red-500 mb-3" />
+          <Shield class="w-12 h-12 mx-auto text-[#7A2123] mb-3" />
           <h2 class="text-lg font-semibold">Admin</h2>
           <p class="text-sm text-gray-500 mt-1">Full system access</p>
         </RouterLink>

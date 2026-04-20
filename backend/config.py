@@ -58,6 +58,7 @@ class OauthSettings(BaseSettings):
 class AppSettings(BaseSettings):
     APP_NAME: str = "Supervisor Tracking System"
     app_domain: str = "http://localhost:8000"
+    frontend_app_domain: str = "http://localhost:5173"
     ALLOWED_EMAIL_DOMAIN: str = "essence.ac.th"
     TEACHER_CODE: str 
     ADMIN_CODE: str

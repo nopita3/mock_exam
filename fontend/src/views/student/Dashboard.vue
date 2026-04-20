@@ -8,6 +8,8 @@
       <p class="text-gray-600">{{ auth.user?.fname }} {{ auth.user?.lname }}</p>
       <p class="text-sm text-gray-500">{{ auth.user?.email }}</p>
       <p class="text-sm text-gray-500">Department: {{ auth.user?.department }}</p>
+      <p class="text-sm text-gray-500">Classroom: {{ auth.user?.classroom || '-' }}</p>
+      <p class="text-sm text-gray-500">Level: {{ auth.user?.level ?? '-' }}</p>
     </div>
 
     <!-- Scores -->

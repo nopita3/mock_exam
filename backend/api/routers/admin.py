@@ -8,7 +8,10 @@ from backend.api.schemas.users import (
     AdminUpdateStudentRequest,
     AdminUpdateTeacherRequest,
     MessageResponse,
+    ScoreEditRequest,
     ScoreUploadResponse,
+    StudentSelfScoreResponse,
+    UserProfileResponse,
     StudentRegisterResponse,
     TeacherAllStudentScoresResponse,
     TeacherRegisterResponse,
@@ -160,6 +163,72 @@ async def upload_scores_as_admin(
     return ScoreUploadResponse(**upload_result)
 
 
+@router.get("/{complex_code}/student/{student_user_id}", response_model=UserProfileResponse)
+async def get_student_by_admin(
+    complex_code: str,
+    student_user_id: str,
+    request: Request,
+    _valid_complex_code: None = Depends(verify_admin_complex_code),
+    token_data: dict = Depends(verify_token),
+    session: AsyncSession = Depends(get_session),
+):
+    admin_user_id = token_data.get("user", {}).get("user_id")
+    user_uuid = token_data.get("user", {}).get("id")
+    if not admin_user_id:
+        await create_api_log(
+            session=session,
+            user_id=user_uuid,
+            uri_path=str(request.url.path),
+            result=False,
+            description="Admin student read failed: invalid token data",
+        )
+        raise InvalidToken()
+
+    service = AdminService(session)
+    profile = await service.get_student_by_admin(admin_user_id, student_user_id)
+    await create_api_log(
+        session=session,
+        user_id=user_uuid,
+        uri_path=str(request.url.path),
+        result=True,
+        description="Admin student read succeeded",
+    )
+    return UserProfileResponse(**profile)
+
+
+@router.get("/{complex_code}/teacher/{teacher_user_id}", response_model=UserProfileResponse)
+async def get_teacher_by_admin(
+    complex_code: str,
+    teacher_user_id: str,
+    request: Request,
+    _valid_complex_code: None = Depends(verify_admin_complex_code),
+    token_data: dict = Depends(verify_token),
+    session: AsyncSession = Depends(get_session),
+):
+    admin_user_id = token_data.get("user", {}).get("user_id")
+    user_uuid = token_data.get("user", {}).get("id")
+    if not admin_user_id:
+        await create_api_log(
+            session=session,
+            user_id=user_uuid,
+            uri_path=str(request.url.path),
+            result=False,
+            description="Admin teacher read failed: invalid token data",
+        )
+        raise InvalidToken()
+
+    service = AdminService(session)
+    profile = await service.get_teacher_by_admin(admin_user_id, teacher_user_id)
+    await create_api_log(
+        session=session,
+        user_id=user_uuid,
+        uri_path=str(request.url.path),
+        result=True,
+        description="Admin teacher read succeeded",
+    )
+    return UserProfileResponse(**profile)
+
+
 @router.put("/{complex_code}/student/{student_user_id}", response_model=StudentRegisterResponse)
 async def update_student_by_admin(
     complex_code: str,
@@ -294,3 +363,107 @@ async def delete_teacher_by_admin(
         description="Admin teacher delete succeeded",
     )
     return MessageResponse(detail="Teacher deleted successfully")
+
+
+@router.get("/{complex_code}/score/student/{student_id}", response_model=StudentSelfScoreResponse)
+async def get_scores_for_student_by_admin(
+    complex_code: str,
+    student_id: str,
+    request: Request,
+    _valid_complex_code: None = Depends(verify_admin_complex_code),
+    token_data: dict = Depends(verify_token),
+    session: AsyncSession = Depends(get_session),
+):
+    admin_user_id = token_data.get("user", {}).get("user_id")
+    user_uuid = token_data.get("user", {}).get("id")
+    if not admin_user_id:
+        await create_api_log(
+            session=session,
+            user_id=user_uuid,
+            uri_path=str(request.url.path),
+            result=False,
+            description="Admin score read failed: invalid token data",
+        )
+        raise InvalidToken()
+
+    service = AdminService(session)
+    score_data = await service.get_scores_for_student_by_admin(admin_user_id, student_id)
+    await create_api_log(
+        session=session,
+        user_id=user_uuid,
+        uri_path=str(request.url.path),
+        result=True,
+        description="Admin score read succeeded",
+    )
+    return StudentSelfScoreResponse(**score_data)
+
+
+@router.put("/{complex_code}/score/student/{student_id}", response_model=StudentSelfScoreResponse)
+async def replace_scores_for_student_by_admin(
+    complex_code: str,
+    student_id: str,
+    payload: ScoreEditRequest,
+    request: Request,
+    _valid_complex_code: None = Depends(verify_admin_complex_code),
+    token_data: dict = Depends(verify_token),
+    session: AsyncSession = Depends(get_session),
+):
+    admin_user_id = token_data.get("user", {}).get("user_id")
+    user_uuid = token_data.get("user", {}).get("id")
+    if not admin_user_id:
+        await create_api_log(
+            session=session,
+            user_id=user_uuid,
+            uri_path=str(request.url.path),
+            result=False,
+            description="Admin score update failed: invalid token data",
+        )
+        raise InvalidToken()
+
+    service = AdminService(session)
+    score_data = await service.replace_scores_for_student_by_admin(
+        admin_user_id,
+        student_id,
+        [item.model_dump() for item in payload.scores],
+    )
+    await create_api_log(
+        session=session,
+        user_id=user_uuid,
+        uri_path=str(request.url.path),
+        result=True,
+        description="Admin score update succeeded",
+    )
+    return StudentSelfScoreResponse(**score_data)
+
+
+@router.delete("/{complex_code}/score/student/{student_id}", response_model=MessageResponse)
+async def delete_scores_for_student_by_admin(
+    complex_code: str,
+    student_id: str,
+    request: Request,
+    _valid_complex_code: None = Depends(verify_admin_complex_code),
+    token_data: dict = Depends(verify_token),
+    session: AsyncSession = Depends(get_session),
+):
+    admin_user_id = token_data.get("user", {}).get("user_id")
+    user_uuid = token_data.get("user", {}).get("id")
+    if not admin_user_id:
+        await create_api_log(
+            session=session,
+            user_id=user_uuid,
+            uri_path=str(request.url.path),
+            result=False,
+            description="Admin score delete failed: invalid token data",
+        )
+        raise InvalidToken()
+
+    service = AdminService(session)
+    await service.delete_scores_for_student_by_admin(admin_user_id, student_id)
+    await create_api_log(
+        session=session,
+        user_id=user_uuid,
+        uri_path=str(request.url.path),
+        result=True,
+        description="Admin score delete succeeded",
+    )
+    return MessageResponse(detail="Scores deleted successfully")

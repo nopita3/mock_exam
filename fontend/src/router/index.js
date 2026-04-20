@@ -27,6 +27,11 @@ const routes = [
     component: () => import('@/views/LoginAdmin.vue'),
   },
   {
+    path: '/auth/verification-complete',
+    name: 'VerificationComplete',
+    component: () => import('@/views/VerificationComplete.vue'),
+  },
+  {
     path: '/student',
     component: () => import('@/layouts/DashboardLayout.vue'),
     meta: { requiresAuth: true, role: 'student' },

@@ -45,6 +45,8 @@ class Student(SQLModel, table = True):
     lname: str 
     nname: str 
     department: StudentDepartment 
+    classroom: str | None = Field(default=None, max_length=1)
+    level: int | None = Field(default=None)
     role: str = Field(default="student" , 
                       sa_column_kwargs={"server_default": "student"})
 

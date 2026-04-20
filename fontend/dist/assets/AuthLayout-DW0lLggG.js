@@ -1,0 +1,1 @@
+import{_ as t,j as o,p as r,o as s}from"./index-CiTZzLRI.js";const n={},c={class:"min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4"};function a(e,i){return s(),o("div",c,[r(e.$slots,"default")])}const f=t(n,[["render",a]]);export{f as A};

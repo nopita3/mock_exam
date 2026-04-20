@@ -38,6 +38,8 @@ class StudentService(UserService):
             lname=payload.lname,
             nname=payload.nname,
             department=payload.department,
+            classroom=payload.classroom,
+            level=payload.level,
             role="student",
         )
 

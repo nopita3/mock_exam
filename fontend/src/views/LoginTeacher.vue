@@ -50,6 +50,19 @@
       <p v-if="success" class="text-green-500 text-sm mt-4">{{ success }}</p>
     </div>
   </AuthLayout>
+
+  <div v-if="showVerificationPrompt" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+    <div class="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+      <h3 class="text-xl font-semibold mb-2">Verify your email</h3>
+      <p class="text-sm text-gray-600 mb-4">{{ verificationMessage }}</p>
+      <div class="flex flex-wrap gap-3 justify-end">
+        <button class="btn-secondary" @click="showVerificationPrompt = false">Close</button>
+        <button class="btn-primary" :disabled="resendingVerification" @click="resendVerificationEmail">
+          {{ resendingVerification ? 'Sending...' : 'Resend verification email' }}
+        </button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
@@ -59,12 +72,18 @@ import { useAuthStore } from '@/stores/auth'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import { ArrowLeft } from 'lucide-vue-next'
 import api from '@/api/client'
+import { signInWithGoogleIdToken } from '@/lib/googleSignIn'
+import { decodeJwtPayload } from '@/lib/utils'
 
 const router = useRouter()
 const auth = useAuthStore()
 const registering = ref(false)
 const error = ref('')
 const success = ref('')
+const showVerificationPrompt = ref(false)
+const verificationMessage = ref('')
+const verificationEmail = ref('')
+const resendingVerification = ref(false)
 
 const form = reactive({
   complex_code: '',
@@ -75,8 +94,44 @@ const form = reactive({
   department: 'physics',
 })
 
-function handleGoogleLogin() {
-  error.value = 'Google login requires a configured Client ID. Please set VITE_GOOGLE_CLIENT_ID in .env.local'
+async function handleGoogleLogin() {
+  error.value = ''
+  success.value = ''
+  showVerificationPrompt.value = false
+  try {
+    const idToken = await signInWithGoogleIdToken()
+    verificationEmail.value = decodeJwtPayload(idToken)?.email || ''
+    const user = await auth.loginWithGoogle(idToken)
+    router.push(`/${user.role}`)
+  } catch (e) {
+    const detail = e.response?.data?.detail || e.message || 'Google login failed'
+    if (String(detail).toLowerCase().includes('verified')) {
+      verificationMessage.value = 'Your account is not verified yet. We can resend the verification email.'
+      showVerificationPrompt.value = true
+      return
+    }
+    error.value = detail
+  }
+}
+
+async function resendVerificationEmail() {
+  if (!verificationEmail.value) {
+    error.value = 'Could not determine the verification email.'
+    return
+  }
+
+  resendingVerification.value = true
+  error.value = ''
+  success.value = ''
+  try {
+    const { data } = await api.post('/auth/resend-verification', { email: verificationEmail.value })
+    verificationMessage.value = data.detail || 'Verification email sent again.'
+    success.value = data.detail || 'Verification email sent again.'
+  } catch (e) {
+    error.value = e.response?.data?.detail || 'Failed to resend verification email.'
+  } finally {
+    resendingVerification.value = false
+  }
 }
 
 async function handleRegister() {
@@ -109,9 +164,12 @@ async function handleRegister() {
 
 <style scoped>
 .input-field {
-  @apply px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm;
+  @apply px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#231F20] focus:border-transparent text-sm;
 }
 .btn-primary {
-  @apply bg-indigo-600 text-white rounded-lg px-4 py-2 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition text-sm font-medium;
+  @apply bg-[#231F20] text-white rounded-lg px-4 py-2 hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed transition text-sm font-medium;
+}
+.btn-secondary {
+  @apply bg-white text-[#231F20] border border-gray-300 rounded-lg px-4 py-2 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition text-sm font-medium;
 }
 </style>

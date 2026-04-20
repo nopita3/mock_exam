@@ -5,11 +5,11 @@ from datetime import date, datetime
 
 from fastapi import BackgroundTasks, UploadFile
 import pandas as pd
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from backend.api.schemas.users import Roles, TeacherRegisterRequest
 from backend.config import app_settings
-from backend.cores.exception import EntityAlreadyExists, EntityNotAllowed
+from backend.cores.exception import EntityAlreadyExists, EntityNotAllowed, EntityNotFound
 from backend.database.models import Score, Student, Teacher, User
 from backend.services.user import UserService
 
@@ -17,10 +17,13 @@ from backend.services.user import UserService
 class TeacherService(UserService):
     @staticmethod
     def _parse_test_date(value: str) -> date:
-        try:
-            return datetime.strptime(value.strip(), "%d/%m/%Y").date()
-        except (TypeError, ValueError):
-            raise EntityNotAllowed()
+        normalized_value = str(value).strip()
+        for date_format in ("%Y-%m-%d", "%d/%m/%Y"):
+            try:
+                return datetime.strptime(normalized_value, date_format).date()
+            except (TypeError, ValueError):
+                continue
+        raise EntityNotAllowed()
 
     @staticmethod
     def _normalize_column_name(name: str) -> str:
@@ -148,6 +151,84 @@ class TeacherService(UserService):
             "inserted_rows": len(score_rows),
             "skipped_rows": skipped_rows,
         }
+
+    @staticmethod
+    def _serialize_score(score: Score) -> dict[str, Any]:
+        return {
+            "exam_id": str(score.exam_id),
+            "student_id": score.studentID,
+            "exam_name": score.exam_name,
+            "exam_round": score.exam_round,
+            "test_date": score.test_date.strftime("%d/%m/%Y"),
+            "score": score.score,
+        }
+
+    async def _require_student(self, student_id: str) -> Student:
+        student_result = await self.session.execute(
+            select(Student).where(Student.StudentID == student_id)
+        )
+        student = student_result.scalar()
+        if student is None:
+            raise EntityNotFound()
+        return student
+
+    async def get_scores_for_student(self, user_id: str, student_id: str) -> dict[str, Any]:
+        await self._require_roles(user_id, {"teacher", "admin"})
+        await self._require_student(student_id)
+
+        score_result = await self.session.execute(
+            select(Score)
+            .where(Score.studentID == student_id)
+            .order_by(Score.test_date.desc(), Score.exam_name.asc())
+        )
+        score_rows = score_result.scalars().all()
+
+        return {
+            "user_id": student_id,
+            "scores": [self._serialize_score(score) for score in score_rows],
+        }
+
+    async def replace_scores_for_student(
+        self,
+        user_id: str,
+        student_id: str,
+        score_rows: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        await self._require_roles(user_id, {"teacher", "admin"})
+        await self._require_student(student_id)
+
+        if not score_rows:
+            raise EntityNotAllowed()
+
+        await self.session.execute(delete(Score).where(Score.studentID == student_id))
+
+        new_rows: list[Score] = []
+        for score_row in score_rows:
+            new_rows.append(
+                Score(
+                    exam_id=uuid4(),
+                    studentID=student_id,
+                    exam_name=str(score_row["exam_name"]),
+                    exam_round=str(score_row["exam_round"]),
+                    test_date=self._parse_test_date(str(score_row["test_date"])),
+                    score=float(score_row["score"]),
+                )
+            )
+
+        self.session.add_all(new_rows)
+        await self.session.commit()
+
+        return {
+            "user_id": student_id,
+            "scores": [self._serialize_score(score) for score in new_rows],
+        }
+
+    async def delete_scores_for_student(self, user_id: str, student_id: str) -> None:
+        await self._require_roles(user_id, {"teacher", "admin"})
+        await self._require_student(student_id)
+
+        await self.session.execute(delete(Score).where(Score.studentID == student_id))
+        await self.session.commit()
 
     async def register_teacher(
         self,

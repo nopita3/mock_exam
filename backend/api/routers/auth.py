@@ -1,7 +1,7 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.api.schemas.users import AccessTokenResponse, GoogleLoginRequest, MessageResponse, UserProfileResponse
+from backend.api.schemas.users import AccessTokenResponse, GoogleLoginRequest, MessageResponse, ResendVerificationRequest, UserProfileResponse
 from backend.cores.exception import InvalidToken
 from backend.cores.security import verify_token
 from backend.database.sessions import get_session
@@ -30,7 +30,7 @@ async def google_login(
     return AccessTokenResponse(access_token=token)
 
 
-@router.get("/verify", response_model=MessageResponse)
+@router.get("/verify", response_model=AccessTokenResponse)
 async def verify_email(
     token: str,
     request: Request,
@@ -38,6 +38,7 @@ async def verify_email(
 ):
     service = UserService(session)
     token_data = await service.verify_email(token)
+    access_token = await service.token(token_data["email"])
     await create_api_log(
         session=session,
         user_id=token_data.get("id"),
@@ -45,7 +46,25 @@ async def verify_email(
         result=True,
         description="Email verification succeeded",
     )
-    return MessageResponse(detail="Email verified successfully")
+    return AccessTokenResponse(access_token=access_token)
+
+
+@router.post("/resend-verification", response_model=MessageResponse)
+async def resend_verification_email(
+    payload: ResendVerificationRequest,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    session: AsyncSession = Depends(get_session),
+):
+    service = UserService(session)
+    await service.resend_verification_email(payload.email, background_tasks=background_tasks)
+    await create_api_log(
+        session=session,
+        uri_path=str(request.url.path),
+        result=True,
+        description="Verification email resend requested",
+    )
+    return MessageResponse(detail="Verification email sent")
 
 
 @router.get("/profile", response_model=UserProfileResponse)

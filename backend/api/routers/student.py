@@ -35,6 +35,8 @@ async def regist_student(
         lname=user.lname,
         nname=user.nname,
         department=payload.department,
+        classroom=payload.classroom,
+        level=payload.level,
     )
 
 
