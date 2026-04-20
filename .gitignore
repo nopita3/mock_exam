@@ -13,3 +13,5 @@ test*
 */.claude/*
 node_modules
 alembic*
+credentials.json
+token.json
