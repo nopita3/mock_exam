@@ -107,7 +107,7 @@ pathspec==0.12.1
 peewee==3.17.8
 pexpect==4.9.0
 pickleshare==0.7.5
-pillow==10.4.0
+pillow==12.2.0
 pipreqs==0.5.0
 platformdirs==4.3.6
 plotly==5.24.1
