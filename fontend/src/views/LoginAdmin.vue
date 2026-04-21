@@ -15,24 +15,12 @@
         Sign in with Google
       </button>
 
-      <div class="relative my-6">
-        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-gray-200"></div></div>
-        <div class="relative flex justify-center text-sm"><span class="px-4 bg-white text-gray-500">or register with code</span></div>
-      </div>
-
-      <!-- Registration Form -->
-      <form @submit.prevent="handleRegister" class="space-y-4">
-        <input v-model="form.complex_code" type="password" placeholder="Admin registration code" required class="input-field w-full" />
-        <div class="grid grid-cols-2 gap-3">
-          <input v-model="form.fname" type="text" placeholder="First name" required class="input-field" />
-          <input v-model="form.lname" type="text" placeholder="Last name" required class="input-field" />
-        </div>
-        <input v-model="form.nname" type="text" placeholder="Nickname" required class="input-field w-full" />
-        <input v-model="form.email" type="email" placeholder="Email (@essence.ac.th)" required class="input-field w-full" />
-        <button type="submit" :disabled="registering" class="btn-primary w-full">
-          {{ registering ? 'Registering...' : 'Register' }}
-        </button>
-      </form>
+      <RouterLink to="/register/admin" class="btn-primary w-full inline-flex justify-center">
+        Register Admin Account
+      </RouterLink>
+      <p class="text-xs text-gray-500 mt-3">
+        This page is for admin login only. Admin registration link should be managed by admin managers.
+      </p>
 
       <p v-if="error" class="text-red-500 text-sm mt-4">{{ error }}</p>
       <p v-if="success" class="text-green-500 text-sm mt-4">{{ success }}</p>
@@ -54,7 +42,7 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import AuthLayout from '@/layouts/AuthLayout.vue'
@@ -65,21 +53,12 @@ import { decodeJwtPayload } from '@/lib/utils'
 
 const router = useRouter()
 const auth = useAuthStore()
-const registering = ref(false)
 const error = ref('')
 const success = ref('')
 const showVerificationPrompt = ref(false)
 const verificationMessage = ref('')
 const verificationEmail = ref('')
 const resendingVerification = ref(false)
-
-const form = reactive({
-  complex_code: '',
-  fname: '',
-  lname: '',
-  nname: '',
-  email: '',
-})
 
 async function handleGoogleLogin() {
   error.value = ''
@@ -118,31 +97,6 @@ async function resendVerificationEmail() {
     error.value = e.response?.data?.detail || 'Failed to resend verification email.'
   } finally {
     resendingVerification.value = false
-  }
-}
-
-async function handleRegister() {
-  registering.value = true
-  error.value = ''
-  success.value = ''
-  try {
-    const { data } = await api.post(`/admin/${form.complex_code}/regist`, {
-      email: form.email,
-      userID: '',
-      fname: form.fname,
-      lname: form.lname,
-      nname: form.nname,
-    })
-    success.value = `Registered as ${data.fname} ${data.lname}. Login with Google using the same email.`
-    form.complex_code = ''
-    form.fname = ''
-    form.lname = ''
-    form.nname = ''
-    form.email = ''
-  } catch (e) {
-    error.value = e.response?.data?.detail || e.response?.data?.message || 'Registration failed. Check your code.'
-  } finally {
-    registering.value = false
   }
 }
 </script>

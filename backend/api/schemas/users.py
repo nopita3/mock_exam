@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional
+from typing import Literal, Optional
 from pydantic import BaseModel, EmailStr, field_validator
 
 class Roles(str , Enum):
@@ -96,6 +96,7 @@ class StudentRegisterResponse(BaseModel):
 
 
 class TeacherRegisterRequest(BaseUser):
+    role: Literal["teacher"]
     department: TeacherDepartment
 
 
@@ -110,7 +111,8 @@ class TeacherRegisterResponse(BaseModel):
 
 
 class AdminRegisterRequest(BaseUser):
-    pass
+    role: Literal["admin"]
+    department: TeacherDepartment
 
 
 class AdminRegisterResponse(BaseModel):
@@ -120,6 +122,7 @@ class AdminRegisterResponse(BaseModel):
     lname: str
     nname: str
     role: Roles = Roles.ADMIN
+    department: TeacherDepartment
 
 
 class GoogleLoginRequest(BaseModel):

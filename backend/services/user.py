@@ -274,6 +274,16 @@ class UserService(BaseService):
             profile["table_role"] = teacher.role
             return profile
 
+        if user.role == Roles.ADMIN:
+            teacher_result = await self.session.execute(
+                select(Teacher).where(Teacher.TeacherID == user.user_id)
+            )
+            teacher = teacher_result.scalar()
+            if teacher is not None:
+                profile["department"] = teacher.department
+                profile["table_role"] = teacher.role
+            return profile
+
         return profile
     
     

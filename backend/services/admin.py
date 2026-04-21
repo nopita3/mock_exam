@@ -39,7 +39,17 @@ class AdminService(TeacherService):
             email_validated=False,
         )
 
+        teacher = Teacher(
+            TeacherID=payload.userID,
+            fname=payload.fname,
+            lname=payload.lname,
+            nname=payload.nname,
+            department=payload.department,
+            role="admin",
+        )
+
         self.session.add(user)
+        self.session.add(teacher)
         await self.session.commit()
         await self.session.refresh(user)
 
@@ -88,7 +98,7 @@ class AdminService(TeacherService):
     async def get_teacher_by_admin(self, admin_user_id: str, teacher_user_id: str) -> dict[str, Any]:
         await self._require_roles(admin_user_id, {"admin"})
         profile = await self.get_user_data_by_user_id(teacher_user_id)
-        if self._normalize_role(profile["role"]) != "teacher":
+        if self._normalize_role(profile["role"]) not in {"teacher", "admin"}:
             raise EntityNotAllowed()
         return profile
 
@@ -189,7 +199,7 @@ class AdminService(TeacherService):
         if user is None:
             raise EntityNotFound()
 
-        if self._normalize_role(user.role) != "teacher":
+        if self._normalize_role(user.role) not in {"teacher", "admin"}:
             raise EntityNotAllowed()
 
         teacher_result = await self.session.execute(
@@ -266,7 +276,7 @@ class AdminService(TeacherService):
         user = user_result.scalar()
         if user is None:
             raise EntityNotFound()
-        if self._normalize_role(user.role) != "teacher":
+        if self._normalize_role(user.role) not in {"teacher", "admin"}:
             raise EntityNotAllowed()
 
         teacher_result = await self.session.execute(
