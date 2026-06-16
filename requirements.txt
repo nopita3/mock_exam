@@ -130,7 +130,7 @@ pydantic-settings==2.10.1
 pydantic_core==2.41.5
 pydyf==0.12.1
 Pygments==2.19.1
-PyJWT==2.10.1
+PyJWT==2.13.0
 pyparsing==3.2.3
 pyphen==0.17.2
 pytest==9.0.1
